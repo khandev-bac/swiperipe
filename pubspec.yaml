@@ -63,10 +63,9 @@ flutter_launcher_icons:
 flutter_native_splash:
   android: true
   color: "#F7DACC"  
-  image: "assets/images/logo.png"
+  # image: "assets/images/bg.png"
   android_12:
-    color: "#F7DACC"
-    # image: "assets/images/logo.png"
+    image: "assets/images/bg.png"
 # The following section is specific to Flutter packages.
 flutter:
 

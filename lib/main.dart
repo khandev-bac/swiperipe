@@ -45,37 +45,12 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final PermissionState permission =
           await PhotoManager.requestPermissionExtend();
+      debugPrint('Permission state: ${permission.name}');
 
-      debugPrint('Initial Permission state: ${permission.name}');
-      debugPrint('Is Auth: ${permission.isAuth}');
-
-      if (!mounted) return;
-
-      bool isAuthorized = permission.isAuth;
-
-      if (!isAuthorized && permission.name == 'limited') {
-        debugPrint('Permission is limited, but proceeding to load photos...');
-        isAuthorized = true;
-      }
-
-      if (!isAuthorized) {
-        debugPrint('Permission denied, requesting again...');
-        await Future.delayed(const Duration(milliseconds: 500));
-
-        final PermissionState retryPermission =
-            await PhotoManager.requestPermissionExtend();
-        debugPrint('Retry Permission state: ${retryPermission.name}');
-
-        isAuthorized = retryPermission.isAuth;
-        if (!isAuthorized && retryPermission.name == 'limited') {
-          isAuthorized = true;
-        }
-      }
-
-      if (!isAuthorized) {
+      if (!permission.isAuth && permission.name != 'limited') {
         if (mounted) {
-          _showMessage('Please enable photo permission in settings');
           setState(() => isLoading = false);
+          _showMessage('Please enable photo permission in settings');
           await Future.delayed(const Duration(seconds: 1));
           PhotoManager.openSetting();
         }
@@ -83,23 +58,19 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       if (mounted) {
-        debugPrint('Permission state is valid, loading photos...');
-        await Future.delayed(const Duration(milliseconds: 300));
         await _loadPhotosFromGallery();
       }
     } catch (e) {
       debugPrint('Permission error: $e');
       if (mounted) {
         setState(() => isLoading = false);
-        _showMessage('Error requesting permission: ${e.toString()}');
+        _showMessage('Error requesting permission: $e');
       }
     }
   }
 
   Future<void> _loadPhotosFromGallery() async {
     try {
-      debugPrint('Starting to load photos...');
-
       List<AssetPathEntity> paths = [];
       int retries = 3;
 
@@ -108,100 +79,60 @@ class _HomeScreenState extends State<HomeScreen> {
           type: RequestType.image,
           hasAll: true,
         );
-
         if (paths.isEmpty) {
-          debugPrint(
-            'No albums found, retrying... (${retries - 1} attempts left)',
-          );
           await Future.delayed(const Duration(milliseconds: 200));
           retries--;
         }
       }
 
-      debugPrint('Total albums found: ${paths.length}');
-
       if (paths.isEmpty) {
-        if (mounted) {
-          setState(() => isLoading = false);
-          _showMessage(
-            'No photo albums found. Check if you have photos in gallery.',
-          );
-        }
+        if (mounted) setState(() => isLoading = false);
+        _showMessage('No photo albums found.');
         return;
       }
 
       final Map<String, List<AssetEntity>> groupedByMonth = {};
 
-      for (var pathEntity in paths) {
-        debugPrint('Loading from album: ${pathEntity.name}');
-
-        final int assetCount = await pathEntity.assetCountAsync;
-        debugPrint('Photos in ${pathEntity.name}: $assetCount');
-
+      for (var path in paths) {
+        final int assetCount = await path.assetCountAsync;
         if (assetCount == 0) continue;
 
-        final List<AssetEntity> assets = await pathEntity.getAssetListRange(
-          start: 0,
-          end: assetCount,
-        );
-
-        debugPrint(
-          'Successfully loaded ${assets.length} assets from ${pathEntity.name}',
-        );
+        final assets = await path.getAssetListRange(start: 0, end: assetCount);
 
         for (var asset in assets) {
-          // Only add if we haven't seen this asset before
-          final bool alreadyAdded = groupedByMonth.values.any(
+          // Prevent duplicates
+          bool alreadyAdded = groupedByMonth.values.any(
             (list) => list.any((a) => a.id == asset.id),
           );
-
           if (!alreadyAdded) {
-            final DateTime createTime = asset.createDateTime ?? DateTime.now();
-            final String monthKey = _getMonthKey(createTime);
-
-            if (!groupedByMonth.containsKey(monthKey)) {
-              groupedByMonth[monthKey] = [];
-            }
-            groupedByMonth[monthKey]!.add(asset);
+            final monthKey = _getMonthKey(
+              asset.createDateTime ?? DateTime.now(),
+            );
+            groupedByMonth.putIfAbsent(monthKey, () => []).add(asset);
           }
         }
       }
 
-      debugPrint('Total photos grouped: ${groupedByMonth.length} months');
-      debugPrint(
-        'Total photos: ${groupedByMonth.values.fold<int>(0, (sum, list) => sum + list.length)}',
-      );
-
       if (groupedByMonth.isEmpty) {
-        if (mounted) {
-          setState(() => isLoading = false);
-          _showMessage('No photos found. Try opening gallery first.');
-        }
+        if (mounted) setState(() => isLoading = false);
+        _showMessage('No photos found.');
         return;
       }
 
       final List<MonthlyPhotoGroup> groups = groupedByMonth.entries
           .map(
-            (entry) => MonthlyPhotoGroup(
-              month: entry.key,
-              assets: entry.value,
-              count: entry.value.length,
+            (e) => MonthlyPhotoGroup(
+              month: e.key,
+              assets: e.value,
+              count: e.value.length,
             ),
           )
           .toList();
 
-      groups.sort((a, b) {
-        try {
-          final aDate = _parseMonthKey(a.month);
-          final bDate = _parseMonthKey(b.month);
-          return bDate.compareTo(aDate);
-        } catch (e) {
-          debugPrint('Sort error: $e');
-          return 0;
-        }
-      });
-
-      debugPrint('Successfully loaded ${groups.length} month groups');
+      // Sort descending by month
+      groups.sort(
+        (a, b) => _parseMonthKey(b.month).compareTo(_parseMonthKey(a.month)),
+      );
 
       if (mounted) {
         setState(() {
@@ -213,7 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
       debugPrint('Error loading photos: $e');
       if (mounted) {
         setState(() => isLoading = false);
-        _showMessage('Error loading photos: ${e.toString()}');
+        _showMessage('Error loading photos: $e');
       }
     }
   }
@@ -251,7 +182,6 @@ class _HomeScreenState extends State<HomeScreen> {
       'Nov',
       'Dec',
     ];
-
     final parts = monthKey.split(' ');
     if (parts.length == 2) {
       final monthIndex = months.indexOf(parts[0]) + 1;
@@ -269,17 +199,20 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // Live deletion callback
+  void _handleDeletedPhoto(AssetEntity deletedAsset) {
+    setState(() {
+      for (var group in monthlyGroups) {
+        group.assets.removeWhere((a) => a.id == deletedAsset.id);
+        group.count = group.assets.length;
+      }
+      monthlyGroups.removeWhere((g) => g.assets.isEmpty);
+    });
+  }
+
+  // Random Clean
   void _navigateToRandomClean() {
-    if (monthlyGroups.isEmpty) {
-      _showMessage('No photos available');
-      return;
-    }
-
-    final List<AssetEntity> allPhotos = [];
-    for (var group in monthlyGroups) {
-      allPhotos.addAll(group.assets);
-    }
-
+    final allPhotos = monthlyGroups.expand((g) => g.assets).toList();
     if (allPhotos.isEmpty) {
       _showMessage('No photos available');
       return;
@@ -288,20 +221,73 @@ class _HomeScreenState extends State<HomeScreen> {
     allPhotos.shuffle();
     final randomPhotos = allPhotos.take(50).toList();
 
-    if (!mounted) return;
-
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SwipeablePhotoCard(
+        builder: (_) => SwipeablePhotoCard(
           assets: randomPhotos,
           title: 'Random Clean',
           onBack: () => Navigator.pop(context),
+          onDelete: _handleDeletedPhoto,
         ),
       ),
     );
   }
 
+  // Screenshots
+  void _navigateToScreenshots() {
+    final allPhotos = monthlyGroups.expand((g) => g.assets).toList();
+    final screenshots = allPhotos.where((asset) {
+      final lowerPath = (asset.title ?? '').toLowerCase();
+      return asset.type == AssetType.image &&
+          (lowerPath.contains('screenshot') ||
+              (asset.relativePath ?? '').toLowerCase().contains('screenshot'));
+    }).toList();
+
+    if (screenshots.isEmpty) {
+      _showMessage('No screenshots found');
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SwipeablePhotoCard(
+          assets: screenshots,
+          title: 'Screenshots',
+          onBack: () => Navigator.pop(context),
+          onDelete: _handleDeletedPhoto,
+        ),
+      ),
+    );
+  }
+
+  // Videos
+  void _navigateToVideos() {
+    final allPhotos = monthlyGroups.expand((g) => g.assets).toList();
+    final videos = allPhotos
+        .where((asset) => asset.type == AssetType.video)
+        .toList();
+
+    if (videos.isEmpty) {
+      _showMessage('No videos found');
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SwipeablePhotoCard(
+          assets: videos,
+          title: 'Videos',
+          onBack: () => Navigator.pop(context),
+          onDelete: _handleDeletedPhoto,
+        ),
+      ),
+    );
+  }
+
+  // Month View
   void _navigateToMonth(String month) {
     final group = monthlyGroups.firstWhere(
       (g) => g.month == month,
@@ -313,15 +299,14 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    if (!mounted) return;
-
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SwipeablePhotoCard(
+        builder: (_) => SwipeablePhotoCard(
           assets: group.assets,
           title: month,
           onBack: () => Navigator.pop(context),
+          onDelete: _handleDeletedPhoto,
         ),
       ),
     );
@@ -332,103 +317,91 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: Customcolors.primary,
       appBar: AppBar(
-        title: Text("Swiperipe", style: Customfonts.swiss),
+        title: Text("Swipester", style: Customfonts.swiss),
         backgroundColor: Customcolors.primary,
         elevation: 0,
         actions: [
-          // Stats icon
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.mediumImpact();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const StatesScren()),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Customcolors.customDarkBlue,
-                  shape: BoxShape.circle,
-                ),
-                child: SvgPicture.asset(
-                  "assets/vectors/state.svg",
-                  width: 24,
-                  height: 24,
-                  color: Colors.white,
-                ),
-              ),
-            ),
+          _buildCircleIcon(
+            svgPath: "assets/vectors/state.svg",
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const StatesScren()),
+              );
+            },
           ),
-
-          // Settings icon
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.mediumImpact();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const SettingsScren(),
-                  ),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Customcolors.customDarkBlue,
-                  shape: BoxShape.circle,
-                ),
-                child: SvgPicture.asset(
-                  "assets/vectors/settings.svg",
-                  width: 24,
-                  height: 24,
-                  color: Colors.white,
-                ),
-              ),
-            ),
+          _buildCircleIcon(
+            svgPath: "assets/vectors/settings.svg",
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScren()),
+              );
+            },
           ),
         ],
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : monthlyGroups.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    "No photos found in gallery",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      setState(() => isLoading = true);
-                      _initializePhotos();
-                    },
-                    child: const Text("Retry"),
-                  ),
-                ],
-              ),
-            )
+          ? _buildEmptyState()
           : DynamicPhotoCards(
               photoGroups: monthlyGroups,
               onRandomClean: _navigateToRandomClean,
-              onScreenshots: () {
-                _showMessage('Screenshots feature coming soon');
-              },
-              onDuplicates: () {
-                _showMessage('Duplicates feature coming soon');
-              },
-              onVideos: () {
-                _showMessage('Videos feature coming soon');
-              },
+              onScreenshots: _navigateToScreenshots,
+              onDuplicates: () => _showMessage('Duplicates coming soon'),
+              onVideos: _navigateToVideos,
               onMonthTap: _navigateToMonth,
             ),
+    );
+  }
+
+  Widget _buildCircleIcon({
+    required String svgPath,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Customcolors.customDarkBlue,
+            shape: BoxShape.circle,
+          ),
+          child: SvgPicture.asset(
+            svgPath,
+            width: 24,
+            height: 24,
+            color: Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text(
+            "No photos found in gallery",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () {
+              setState(() => isLoading = true);
+              _initializePhotos();
+            },
+            child: const Text("Retry"),
+          ),
+        ],
+      ),
     );
   }
 }
