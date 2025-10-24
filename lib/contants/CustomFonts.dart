@@ -16,11 +16,17 @@ class Customfonts {
   static const TextStyle redHatBold = TextStyle(
     fontFamily: "RedHat",
     fontWeight: FontWeight.w700,
-    fontSize: 30,
+    fontSize: 25,
   );
   static const TextStyle swiss = TextStyle(
     fontFamily: "Swiss",
     fontSize: 40,
+    color: Customcolors.customDarkBlue,
+  );
+  static const TextStyle ScreensAppBar = TextStyle(
+    fontFamily: "RedHat",
+    fontWeight: FontWeight.w700,
+    fontSize: 25,
     color: Customcolors.customDarkBlue,
   );
 }
