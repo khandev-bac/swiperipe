@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
@@ -7,6 +8,8 @@ import 'package:swiperipe/contants/CustomFonts.dart';
 import 'package:swiperipe/screens/HomeScreen/HomeScreen.dart';
 import 'package:swiperipe/screens/Settings/settings.dart';
 import 'package:swiperipe/screens/StatesScreen/StateScreen.dart';
+import 'package:swipable_stack/swipable_stack.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 void main() {
   runApp(const MyApp());
@@ -24,6 +27,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
+// ------------------- HomeScreen -------------------
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -41,6 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _initializePhotos();
   }
 
+  // ------------------- Permission & Load Photos -------------------
   Future<void> _initializePhotos() async {
     try {
       final PermissionState permission =
@@ -54,22 +59,17 @@ class _HomeScreenState extends State<HomeScreen> {
       bool isAuthorized = permission.isAuth;
 
       if (!isAuthorized && permission.name == 'limited') {
-        debugPrint('Permission is limited, but proceeding to load photos...');
+        debugPrint('Permission is limited, proceeding...');
         isAuthorized = true;
       }
 
       if (!isAuthorized) {
-        debugPrint('Permission denied, requesting again...');
         await Future.delayed(const Duration(milliseconds: 500));
-
         final PermissionState retryPermission =
             await PhotoManager.requestPermissionExtend();
         debugPrint('Retry Permission state: ${retryPermission.name}');
-
-        isAuthorized = retryPermission.isAuth;
-        if (!isAuthorized && retryPermission.name == 'limited') {
-          isAuthorized = true;
-        }
+        isAuthorized =
+            retryPermission.isAuth || retryPermission.name == 'limited';
       }
 
       if (!isAuthorized) {
@@ -83,7 +83,6 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       if (mounted) {
-        debugPrint('Permission state is valid, loading photos...');
         await Future.delayed(const Duration(milliseconds: 300));
         await _loadPhotosFromGallery();
       }
@@ -98,8 +97,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadPhotosFromGallery() async {
     try {
-      debugPrint('Starting to load photos...');
-
       List<AssetPathEntity> paths = [];
       int retries = 3;
 
@@ -118,26 +115,10 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
 
-      debugPrint('Total albums found: ${paths.length}');
-
-      if (paths.isEmpty) {
-        if (mounted) {
-          setState(() => isLoading = false);
-          _showMessage(
-            'No photo albums found. Check if you have photos in gallery.',
-          );
-        }
-        return;
-      }
-
       final Map<String, List<AssetEntity>> groupedByMonth = {};
 
       for (var pathEntity in paths) {
-        debugPrint('Loading from album: ${pathEntity.name}');
-
         final int assetCount = await pathEntity.assetCountAsync;
-        debugPrint('Photos in ${pathEntity.name}: $assetCount');
-
         if (assetCount == 0) continue;
 
         final List<AssetEntity> assets = await pathEntity.getAssetListRange(
@@ -145,12 +126,7 @@ class _HomeScreenState extends State<HomeScreen> {
           end: assetCount,
         );
 
-        debugPrint(
-          'Successfully loaded ${assets.length} assets from ${pathEntity.name}',
-        );
-
         for (var asset in assets) {
-          // Only add if we haven't seen this asset before
           final bool alreadyAdded = groupedByMonth.values.any(
             (list) => list.any((a) => a.id == asset.id),
           );
@@ -159,25 +135,9 @@ class _HomeScreenState extends State<HomeScreen> {
             final DateTime createTime = asset.createDateTime ?? DateTime.now();
             final String monthKey = _getMonthKey(createTime);
 
-            if (!groupedByMonth.containsKey(monthKey)) {
-              groupedByMonth[monthKey] = [];
-            }
-            groupedByMonth[monthKey]!.add(asset);
+            groupedByMonth.putIfAbsent(monthKey, () => []).add(asset);
           }
         }
-      }
-
-      debugPrint('Total photos grouped: ${groupedByMonth.length} months');
-      debugPrint(
-        'Total photos: ${groupedByMonth.values.fold<int>(0, (sum, list) => sum + list.length)}',
-      );
-
-      if (groupedByMonth.isEmpty) {
-        if (mounted) {
-          setState(() => isLoading = false);
-          _showMessage('No photos found. Try opening gallery first.');
-        }
-        return;
       }
 
       final List<MonthlyPhotoGroup> groups = groupedByMonth.entries
@@ -191,17 +151,10 @@ class _HomeScreenState extends State<HomeScreen> {
           .toList();
 
       groups.sort((a, b) {
-        try {
-          final aDate = _parseMonthKey(a.month);
-          final bDate = _parseMonthKey(b.month);
-          return bDate.compareTo(aDate);
-        } catch (e) {
-          debugPrint('Sort error: $e');
-          return 0;
-        }
+        final aDate = _parseMonthKey(a.month);
+        final bDate = _parseMonthKey(b.month);
+        return bDate.compareTo(aDate);
       });
-
-      debugPrint('Successfully loaded ${groups.length} month groups');
 
       if (mounted) {
         setState(() {
@@ -251,7 +204,6 @@ class _HomeScreenState extends State<HomeScreen> {
       'Nov',
       'Dec',
     ];
-
     final parts = monthKey.split(' ');
     if (parts.length == 2) {
       final monthIndex = months.indexOf(parts[0]) + 1;
@@ -269,17 +221,24 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // ------------------- Functions for DynamicPhotoCards -------------------
+
+  void _onDeletePhoto(AssetEntity asset) {
+    setState(() {
+      for (var group in monthlyGroups) {
+        group.assets.remove(asset);
+        group.count = group.assets.length;
+      }
+    });
+  }
+
   void _navigateToRandomClean() {
     if (monthlyGroups.isEmpty) {
       _showMessage('No photos available');
       return;
     }
 
-    final List<AssetEntity> allPhotos = [];
-    for (var group in monthlyGroups) {
-      allPhotos.addAll(group.assets);
-    }
-
+    final allPhotos = monthlyGroups.expand((g) => g.assets).toList();
     if (allPhotos.isEmpty) {
       _showMessage('No photos available');
       return;
@@ -287,8 +246,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     allPhotos.shuffle();
     final randomPhotos = allPhotos.take(50).toList();
-
-    if (!mounted) return;
 
     Navigator.push(
       context,
@@ -298,6 +255,7 @@ class _HomeScreenState extends State<HomeScreen> {
           title: 'Random Clean',
           onBack: () => Navigator.pop(context),
           onKeep: (AssetEntity asset) {},
+          onDelete: _onDeletePhoto,
         ),
       ),
     );
@@ -314,8 +272,6 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    if (!mounted) return;
-
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -324,20 +280,10 @@ class _HomeScreenState extends State<HomeScreen> {
           title: month,
           onBack: () => Navigator.pop(context),
           onKeep: (AssetEntity asset) {},
+          onDelete: _onDeletePhoto,
         ),
       ),
     );
-  }
-
-  void _onDeletePhoto(AssetEntity asset) {
-    // This will be called by DynamicPhotoCards when a photo is deleted
-    // Remove from monthlyGroups if needed
-    setState(() {
-      for (var group in monthlyGroups) {
-        group.assets.remove(asset);
-        group.count = group.assets.length;
-      }
-    });
   }
 
   void _onScreenshots() async {
@@ -352,7 +298,7 @@ class _HomeScreenState extends State<HomeScreen> {
       List<AssetEntity> screenshots = [];
 
       for (var path in paths) {
-        final int count = await path.assetCountAsync; // <-- use assetCountAsync
+        final int count = await path.assetCountAsync;
         if (count == 0) continue;
 
         final assets = await path.getAssetListRange(start: 0, end: count);
@@ -374,8 +320,8 @@ class _HomeScreenState extends State<HomeScreen> {
               assets: screenshots,
               title: "Screenshots",
               onBack: () => Navigator.pop(context),
-              onDelete: (asset) {},
               onKeep: (asset) {},
+              onDelete: _onDeletePhoto,
             ),
           ),
         );
@@ -387,6 +333,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // ------------------- Build -------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -478,9 +425,7 @@ class _HomeScreenState extends State<HomeScreen> {
           : DynamicPhotoCards(
               photoGroups: monthlyGroups,
               onRandomClean: _navigateToRandomClean,
-              onScreenshots: () {
-                _onScreenshots();
-              },
+              onScreenshots: _onScreenshots,
               onDuplicates: () {
                 _showMessage('Duplicates feature coming soon');
               },
