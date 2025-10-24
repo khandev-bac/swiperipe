@@ -62,10 +62,11 @@ flutter_launcher_icons:
   adaptive_icon_background: "assets/images/bg.png"
 flutter_native_splash:
   android: true
-  color: "#F7DACC"  
-  # image: "assets/images/bg.png"
+  color: "transparent"   # Use transparent instead of a hex color
   android_12:
     image: "assets/images/bg.png"
+    # background_color: "transparent"  # Make Android 12 splash transparent too
+
 # The following section is specific to Flutter packages.
 flutter:
 

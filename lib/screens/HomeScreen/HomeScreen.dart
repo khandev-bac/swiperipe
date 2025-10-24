@@ -36,6 +36,7 @@ class DynamicPhotoCards extends StatefulWidget {
     required this.onDuplicates,
     required this.onVideos,
     required this.onMonthTap,
+    required void Function(AssetEntity asset) onDelete,
   }) : super(key: key);
 
   @override
@@ -243,7 +244,8 @@ class SwipeablePhotoCard extends StatefulWidget {
     required this.assets,
     required this.title,
     required this.onBack,
-    this.onDelete, // <-- NEW
+    this.onDelete,
+    required void Function(AssetEntity asset) onKeep, // <-- NEW
   }) : super(key: key);
 
   @override
