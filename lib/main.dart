@@ -20,7 +20,7 @@ class MyApp extends StatelessWidget {
       home: Scaffold(
         backgroundColor: Customcolors.primary,
         appBar: AppBar(
-          title: Text("SwipeRipe", style: Customfonts.swiss),
+          title: Text("Swiperipe", style: Customfonts.swiss),
           backgroundColor: Customcolors.primary,
           actions: [
             // First icon

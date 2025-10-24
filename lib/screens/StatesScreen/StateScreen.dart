@@ -14,7 +14,14 @@ class StatesScren extends StatelessWidget {
         centerTitle: true,
         backgroundColor: Customcolors.primary,
         title: Center(
-          child: Text("SwipeRipe", style: Customfonts.ScreensAppBar),
+          child: Text(
+            "Swiperipe",
+            style: TextStyle(
+              fontFamily: "Swiss",
+              fontSize: 20,
+              color: Customcolors.customDarkBlue,
+            ),
+          ),
         ),
       ),
     );
