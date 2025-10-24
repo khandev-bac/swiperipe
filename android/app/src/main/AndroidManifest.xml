@@ -7,7 +7,7 @@
 
 
     <application
-        android:label="swiperipe"
+        android:label="swipester"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         android:requestLegacyExternalStorage="true"

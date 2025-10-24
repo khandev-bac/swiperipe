@@ -150,13 +150,20 @@ class _HomeScreenState extends State<HomeScreen> {
         );
 
         for (var asset in assets) {
-          final DateTime createTime = asset.createDateTime ?? DateTime.now();
-          final String monthKey = _getMonthKey(createTime);
+          // Only add if we haven't seen this asset before
+          final bool alreadyAdded = groupedByMonth.values.any(
+            (list) => list.any((a) => a.id == asset.id),
+          );
 
-          if (!groupedByMonth.containsKey(monthKey)) {
-            groupedByMonth[monthKey] = [];
+          if (!alreadyAdded) {
+            final DateTime createTime = asset.createDateTime ?? DateTime.now();
+            final String monthKey = _getMonthKey(createTime);
+
+            if (!groupedByMonth.containsKey(monthKey)) {
+              groupedByMonth[monthKey] = [];
+            }
+            groupedByMonth[monthKey]!.add(asset);
           }
-          groupedByMonth[monthKey]!.add(asset);
         }
       }
 

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:swiperipe/contants/CustomFonts.dart';
 
 class SettingCard extends StatelessWidget {
   final String title;

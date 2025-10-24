@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:swiperipe/contants/CustomColors.dart';
-import 'package:swiperipe/contants/CustomFonts.dart';
 
 class StatesScren extends StatelessWidget {
   const StatesScren({super.key});
