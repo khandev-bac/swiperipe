@@ -344,31 +344,6 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 0,
         actions: [
           // Stats icon
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.mediumImpact();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const StatesScren()),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Customcolors.customDarkBlue,
-                  shape: BoxShape.circle,
-                ),
-                child: SvgPicture.asset(
-                  "assets/vectors/state.svg",
-                  width: 24,
-                  height: 24,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
 
           // Settings icon
           Padding(
