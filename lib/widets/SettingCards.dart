@@ -7,6 +7,7 @@ class SettingCard extends StatelessWidget {
   final Color titleColor;
   final String svg;
   final Color cardColor;
+  final Color cardOpcolor;
   final Color iconColor;
   final VoidCallback onTap;
   const SettingCard({
@@ -17,6 +18,7 @@ class SettingCard extends StatelessWidget {
     required this.onTap,
     required this.iconColor,
     required this.titleColor,
+    required this.cardOpcolor,
   });
 
   @override
@@ -28,6 +30,14 @@ class SettingCard extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         elevation: 10,
         child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              colors: [cardColor, cardOpcolor],
+              begin: AlignmentGeometry.topLeft,
+              end: AlignmentGeometry.bottomRight,
+            ),
+          ),
           height: 80,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
