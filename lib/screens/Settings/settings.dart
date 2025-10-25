@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:swiperipe/contants/CustomColors.dart';
 import 'package:swiperipe/widets/SettingCards.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScren extends StatelessWidget {
   const SettingsScren({super.key});
@@ -80,7 +81,22 @@ class SettingsScren extends StatelessWidget {
               title: "Privacy Policy",
               svg: "assets/vectors/policy.svg",
               cardColor: Colors.lightBlue,
-              onTap: () {},
+              onTap: () async {
+                const url =
+                    'https://www.freeprivacypolicy.com/live/e2cf112e-b862-4a0b-9185-57b04a98f27f';
+                final Uri uri = Uri.parse(url);
+
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(
+                    uri,
+                    mode: LaunchMode.externalApplication, // <--- Important!
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Could not open the link")),
+                  );
+                }
+              },
               iconColor: Colors.white,
               titleColor: Colors.white,
               cardOpcolor: Color(0xFF80A1BA),

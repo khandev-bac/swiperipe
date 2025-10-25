@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
@@ -7,9 +6,6 @@ import 'package:swiperipe/contants/CustomColors.dart';
 import 'package:swiperipe/contants/CustomFonts.dart';
 import 'package:swiperipe/screens/HomeScreen/HomeScreen.dart';
 import 'package:swiperipe/screens/Settings/settings.dart';
-import 'package:swiperipe/screens/StatesScreen/StateScreen.dart';
-import 'package:swipable_stack/swipable_stack.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 void main() {
   runApp(const MyApp());
@@ -342,38 +338,38 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text("Swipester", style: Customfonts.swiss),
         backgroundColor: Customcolors.primary,
         elevation: 0,
-        actions: [
-          // Stats icon
+        // actions: [
+        //   // Stats icon
 
-          // Settings icon
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.mediumImpact();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const SettingsScren(),
-                  ),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Customcolors.customDarkBlue,
-                  shape: BoxShape.circle,
-                ),
-                child: SvgPicture.asset(
-                  "assets/vectors/settings.svg",
-                  width: 24,
-                  height: 24,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ],
+        //   // Settings icon
+        //   Padding(
+        //     padding: const EdgeInsets.symmetric(horizontal: 10),
+        //     child: GestureDetector(
+        //       onTap: () {
+        //         HapticFeedback.mediumImpact();
+        //         Navigator.push(
+        //           context,
+        //           MaterialPageRoute(
+        //             builder: (context) => const SettingsScren(),
+        //           ),
+        //         );
+        //       },
+        //       child: Container(
+        //         padding: const EdgeInsets.all(8),
+        //         decoration: BoxDecoration(
+        //           color: Customcolors.customDarkBlue,
+        //           shape: BoxShape.circle,
+        //         ),
+        //         child: SvgPicture.asset(
+        //           "assets/vectors/settings.svg",
+        //           width: 24,
+        //           height: 24,
+        //           color: Colors.white,
+        //         ),
+        //       ),
+        //     ),
+        //   ),
+        // ],
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
